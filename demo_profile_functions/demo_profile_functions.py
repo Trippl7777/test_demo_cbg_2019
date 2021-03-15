@@ -99,7 +99,7 @@ def get_edu_attainment_groups():
 def pull_vals_of_dict_into_list(my_dict):
     return(flatten_list([val for key,val in my_dict.items()]))
 
-def get_final_field_ids(field_level_1):
+def get_final_field_ids(table_title):
     # final_codes are the field_ids we expect in our final cleaned and aggregated data 
     # (including made up codes; fake agg codes are substituted in for the unaggregated codes_
         
@@ -115,14 +115,14 @@ def get_final_field_ids(field_level_1):
                    'Aggregate Household Income In The Past 12 Months (In 2016 Inflation-Adjusted Dollars)' : pull_vals_of_dict_into_list(inc_final_codes)
                   }
     
-    return(final_codes[field_level_1])
+    return(final_codes[table_title])
 
-def get_census_prefix(field_level_1_list, cbg_field_desc):
-    prefixes = [field_id[0:3].lower() for field_id in cbg_field_desc[cbg_field_desc.field_level_1.isin(field_level_1_list)].field_id]
+def get_census_prefix(table_title_list, cbg_field_desc):
+    prefixes = [field_id[0:3].lower() for field_id in cbg_field_desc[cbg_field_desc.table_title.isin(table_title_list)].field_id]
     return(list(set(prefixes)))
 
 
-def aggregate_census_columns(cen_df_, cbg_field_desc_, agg_groups, agg_groups_new_codes, field_level_1_str, field_level_3_str):
+def aggregate_census_columns(cen_df_, cbg_field_desc_, agg_groups, agg_groups_new_codes, table_title_str, field_level_3_str):
     cen_df = cen_df_.copy()
     
     # Make the Aggregations into new columns
@@ -132,7 +132,7 @@ def aggregate_census_columns(cen_df_, cbg_field_desc_, agg_groups, agg_groups_ne
         cen_df[new_made_up_code] =  cen_df[codes].sum(axis='columns') 
         cen_df.drop(codes,axis='columns',inplace=True) # drop the old columns we just aggregated
         new_field_desc_list.append( pd.DataFrame({'field_id' : new_made_up_code,
-                                                  'field_level_1' : field_level_1_str,
+                                                  'table_title' : table_title_str,
                                                   'field_level_2' : agg_group,
                                                   'field_level_3' : field_level_3_str
                                                  }, index=[0])
@@ -146,9 +146,9 @@ def aggregate_ageSex_vars(cen_df_, cbg_field_desc_):
     
     cen_df = cen_df_.copy() # to avoid assignment warning
     age_groups, age_groups_new_codes = get_age_by_sex_groups()
-    field_level_1_str = 'Sex By Age'
+    table_title_str = 'Sex By Age'
     field_level_3_str = 'Total Population -- (Estimate)'
-    cen_df, cbg_field_desc_ = aggregate_census_columns(cen_df, cbg_field_desc_, age_groups, age_groups_new_codes, field_level_1_str, field_level_3_str)
+    cen_df, cbg_field_desc_ = aggregate_census_columns(cen_df, cbg_field_desc_, age_groups, age_groups_new_codes, table_title_str, field_level_3_str)
    
     return(cen_df, cbg_field_desc_)
 
@@ -156,9 +156,9 @@ def aggregate_HouseholdIncome_vars(cen_df_, cbg_field_desc_):
     
     cen_df = cen_df_.copy() # to avoid assignment warning
     inc_groups, inc_groups_new_codes = get_household_income_groups()
-    field_level_1_str = 'Household Income In The Past 12 Months (In 2016 Inflation-Adjusted Dollars)'
+    table_title_str = 'Household Income In The Past 12 Months (In 2016 Inflation-Adjusted Dollars)'
     field_level_3_str = 'Households -- (Estimate)'
-    cen_df, cbg_field_desc_ = aggregate_census_columns(cen_df, cbg_field_desc_, inc_groups, inc_groups_new_codes, field_level_1_str, field_level_3_str)
+    cen_df, cbg_field_desc_ = aggregate_census_columns(cen_df, cbg_field_desc_, inc_groups, inc_groups_new_codes, table_title_str, field_level_3_str)
    
     return(cen_df, cbg_field_desc_)
 
@@ -166,9 +166,9 @@ def aggregate_edu_variables(cen_df_, cbg_field_desc_):
     
     cen_df = cen_df_.copy() # to avoid assignment warning
     edu_groups, edu_groups_new_codes = get_edu_attainment_groups()
-    field_level_1_str = 'Educational Attainment For The Population 25 Years And Over'
+    table_title_str = 'Educational Attainment For The Population 25 Years And Over'
     field_level_3_str = 'Population 25 Years And Over -- (Estimate)'
-    cen_df, cbg_field_desc_ = aggregate_census_columns(cen_df,cbg_field_desc_, edu_groups, edu_groups_new_codes, field_level_1_str, field_level_3_str)
+    cen_df, cbg_field_desc_ = aggregate_census_columns(cen_df,cbg_field_desc_, edu_groups, edu_groups_new_codes, table_title_str, field_level_3_str)
    
     return(cen_df, cbg_field_desc_)
 
@@ -196,13 +196,13 @@ def reaggregate_census_data(cen_df, cbg_field_desc, demos_to_analyze, verbose=Fa
     return(cen_df, cbg_field_desc)
 
 def get_raw_census_data(demos_to_analyze, open_census_data_dir, drive=None, verbose=False):
-    # demos_to_analyze is a list of length 1 to 5 containing field_level_1 values  
+    # demos_to_analyze is a list of length 1 to 5 containing table_title values  
     # open_census_data_dir is the path where the Open Census Data is located
     # alternatively if you pass a drive object from google coLab e.g. drive = GoogleDrive(gauth), 
     #.  then these functions will read from the public Google Drive sharing open census data. 
     # Note: OpenCensusData public GDrive folder: https://drive.google.com/drive/u/1/folders/1btSS6zo7_wJCCXAigkbhnaoeU-Voa9pG
     
-    # These are the supported options for field_level_1 strings: 
+    # These are the supported options for table_title strings: 
     #    'Sex By Age', 
     #    'Race', 
     #    'Hispanic Or Latino Origin', 
@@ -370,7 +370,7 @@ def allocate_sum_wrangle_demos(df_, demos_list, group_key='brands', verbose=Fals
 
 def get_totals_for_each_brand_and_demo(df, cbg_field_desc_, sample_col='visitor_count', group_key='brands'):
     meas_vars = [col for col in df.columns if sample_col in col]
-    df = pd.merge(df, cbg_field_desc_[['field_id','field_level_1']], left_on='demo_code' , right_on='field_id').drop('field_id',axis=1).rename(columns={'field_level_1':'demo_category'})
+    df = pd.merge(df, cbg_field_desc_[['field_id','table_title']], left_on='demo_code' , right_on='field_id').drop('field_id',axis=1).rename(columns={'table_title':'demo_category'})
     total_visitors_est = df.groupby(['demo_category', group_key]).sum(numeric_only=None).reset_index()[['demo_category', group_key] + meas_vars]
     df = pd.merge(df, total_visitors_est, on = ['demo_category',group_key], suffixes=('','_total'))
     return(df)
@@ -448,7 +448,7 @@ def make_demographics_chart(res2plot,
     
     # prep to plot 
     plt.rcParams['figure.figsize'] = fig_size
-    res2plot = pd.merge(res2plot, get_col_orders(), how = 'left').sort_values(by=[group_key,'field_level_1','col_order'], ascending=True)
+    res2plot = pd.merge(res2plot, get_col_orders(), how = 'left').sort_values(by=[group_key,'table_title','col_order'], ascending=True)
     brands2plot = pd.Series(res2plot[group_key].unique()).sort_values()
     if(show_error):
         err_linewidth, capsize = (2,5)
