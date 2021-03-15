@@ -99,8 +99,8 @@ def get_edu_attainment_groups():
 def pull_vals_of_dict_into_list(my_dict):
     return(flatten_list([val for key,val in my_dict.items()]))
 
-def get_final_table_ids(field_level_1):
-    # final_codes are the table_ids we expect in our final cleaned and aggregated data 
+def get_final_field_ids(field_level_1):
+    # final_codes are the field_ids we expect in our final cleaned and aggregated data 
     # (including made up codes; fake agg codes are substituted in for the unaggregated codes_
         
     inc_read_codes, inc_final_codes = get_household_income_groups()
@@ -118,7 +118,7 @@ def get_final_table_ids(field_level_1):
     return(final_codes[field_level_1])
 
 def get_census_prefix(field_level_1_list, cbg_field_desc):
-    prefixes = [table_id[0:3].lower() for table_id in cbg_field_desc[cbg_field_desc.field_level_1.isin(field_level_1_list)].table_id]
+    prefixes = [field_id[0:3].lower() for field_id in cbg_field_desc[cbg_field_desc.field_level_1.isin(field_level_1_list)].field_id]
     return(list(set(prefixes)))
 
 
@@ -131,7 +131,7 @@ def aggregate_census_columns(cen_df_, cbg_field_desc_, agg_groups, agg_groups_ne
         new_made_up_code = agg_groups_new_codes[agg_group]
         cen_df[new_made_up_code] =  cen_df[codes].sum(axis='columns') 
         cen_df.drop(codes,axis='columns',inplace=True) # drop the old columns we just aggregated
-        new_field_desc_list.append( pd.DataFrame({'table_id' : new_made_up_code,
+        new_field_desc_list.append( pd.DataFrame({'field_id' : new_made_up_code,
                                                   'field_level_1' : field_level_1_str,
                                                   'field_level_2' : agg_group,
                                                   'field_level_3' : field_level_3_str
@@ -189,7 +189,7 @@ def reaggregate_census_data(cen_df, cbg_field_desc, demos_to_analyze, verbose=Fa
         if(verbose): print("Income aggregation complete.\n{0}".format(cen_df.shape))
     
     # Drop all the columns that are not essential to our cause
-    columns_to_keep = flatten_list([flatten_list(get_final_table_ids(demo)) for demo in demos_to_analyze]) + ['census_block_group', 'B01001e1']
+    columns_to_keep = flatten_list([flatten_list(get_final_field_ids(demo)) for demo in demos_to_analyze]) + ['census_block_group', 'B01001e1']
     cen_df = cen_df[columns_to_keep]
     if(verbose): print("Dropped unused columns.\n{0}".format(cen_df.shape))
     
@@ -224,7 +224,7 @@ def get_raw_census_data(demos_to_analyze, open_census_data_dir, drive=None, verb
 
 def normalize_demos_to_fractions(cen_df, demos_to_analyze, verbose=False):
     for this_demo_cat in demos_to_analyze:
-        demo_codes = get_final_table_ids(this_demo_cat)
+        demo_codes = get_final_field_ids(this_demo_cat)
         demo_totals = cen_df[demo_codes].sum(axis=1)
         for this_code in demo_codes:
             cen_df[this_code+"_frac"] = cen_df[this_code] / demo_totals
@@ -317,7 +317,7 @@ def allocate_visits_by_demos(df_, demos_list, sample_col='visitor_count', verbos
     df = df_.copy()
     # For every demo_group (e.g. "Race"), allocate counts according to the demo fraction 
     for demo_group in demos_list:
-        demo_codes = get_final_table_ids(demo_group)
+        demo_codes = get_final_field_ids(demo_group)
         for dc in demo_codes:
             df[sample_col+'_'+dc+'_D_adj'] = df[dc+'_frac'] * df[sample_col] # We will use this to agg within demos across CBGs
             df[sample_col+'_'+dc+'_POP_D_adj'] = df[dc+'_frac'] * df[sample_col+'_cbg_adj'] # We will use this to re-weight at end
@@ -340,7 +340,7 @@ def wrangle_summs_into_long_format(summs_, demos_list, group_key='brands', verbo
     # The D_adj and the POP_D_adj are distinct measurements, so we pivot the data again for the final desired format
     # The final dataframe has 5 columns, and 1 row for every brand-demo pairing
     
-    all_demo_codes = flatten_list([get_final_table_ids(demo) for demo in demos_list])
+    all_demo_codes = flatten_list([get_final_field_ids(demo) for demo in demos_list])
 
     data_summary_list = []
     for this_group in summs_[group_key].tolist():
@@ -370,7 +370,7 @@ def allocate_sum_wrangle_demos(df_, demos_list, group_key='brands', verbose=Fals
 
 def get_totals_for_each_brand_and_demo(df, cbg_field_desc_, sample_col='visitor_count', group_key='brands'):
     meas_vars = [col for col in df.columns if sample_col in col]
-    df = pd.merge(df, cbg_field_desc_[['table_id','field_level_1']], left_on='demo_code' , right_on='table_id').drop('table_id',axis=1).rename(columns={'field_level_1':'demo_category'})
+    df = pd.merge(df, cbg_field_desc_[['field_id','field_level_1']], left_on='demo_code' , right_on='field_id').drop('field_id',axis=1).rename(columns={'field_level_1':'demo_category'})
     total_visitors_est = df.groupby(['demo_category', group_key]).sum(numeric_only=None).reset_index()[['demo_category', group_key] + meas_vars]
     df = pd.merge(df, total_visitors_est, on = ['demo_category',group_key], suffixes=('','_total'))
     return(df)
@@ -417,11 +417,11 @@ def get_age_col_order():
     return(pd.DataFrame({'demo_code' : [b[this] for this in  list(a.keys())], 'col_order' : list(range(len(list(a.keys()))))}))
 
 def get_race_col_order():
-    col_order = get_final_table_ids('Race')
+    col_order = get_final_field_ids('Race')
     return(pd.DataFrame({'demo_code' : col_order, 'col_order' : list(range(len(col_order)))}))
 
 def get_hispanic_col_order():
-    col_order = get_final_table_ids('Hispanic Or Latino Origin')
+    col_order = get_final_field_ids('Hispanic Or Latino Origin')
     return(pd.DataFrame({'demo_code' : col_order, 'col_order' : list(range(len(col_order)))}))
                    
 def get_col_orders():
@@ -596,7 +596,7 @@ def combine_and_analyze(visitors_df,
     demos_reweighted = apply_strata_reweighting(demo_stats, cols_to_adjust=[sample_col+'_D_adj', 'conf_interval'], raw_column=sample_col+'_D_adj', adjusted_column=sample_col+'_POP_D_adj') # at demo level
     final_results = get_totals_for_each_brand_and_demo(demos_reweighted, cbg_field_desc_mod, sample_col=sample_col+'_D_adj_rw', group_key=group_key)
     final_results = convert_cols_to_frac_of_total(final_results, [sample_col+'_D_adj_rw', 'conf_interval_rw'], sample_col+'_D_adj_rw_total')
-    final_results = pd.merge(final_results, cbg_field_desc_mod, left_on = 'demo_code', right_on='table_id').dropna(axis=1,how='all')
+    final_results = pd.merge(final_results, cbg_field_desc_mod, left_on = 'demo_code', right_on='field_id').dropna(axis=1,how='all')
     
     return(visitors_join, final_results)
 
